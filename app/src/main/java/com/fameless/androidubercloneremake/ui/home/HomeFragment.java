@@ -4,6 +4,8 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Looper;
@@ -55,6 +57,10 @@ import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.single.PermissionListener;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
+
 public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
     private GoogleMap mMap;
@@ -74,7 +80,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     ValueEventListener onlineValueEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-            if (dataSnapshot.exists())
+            if (dataSnapshot.exists() && currentUserRef !=null)
                 currentUserRef.onDisconnect().removeValue();
         }
 
@@ -122,12 +128,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private void init() {
 
         onlineRef = FirebaseDatabase.getInstance().getReference().child(".info/connected");
-        driversLocationRef = FirebaseDatabase.getInstance().getReference(Common.DRIVER_LOCATION_REFERENCE);
-        currentUserRef = FirebaseDatabase.getInstance().getReference(Common.DRIVER_LOCATION_REFERENCE)
-                .child(FirebaseAuth.getInstance().getCurrentUser().getUid());
-        geoFire = new GeoFire(driversLocationRef);
 
-        registerOnlineSystem();
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            Snackbar.make(getView(), getString(R.string.permission_require), Snackbar.LENGTH_SHORT).show();
+            return;
+        }
+
+
+
+
 
         locationRequest = new LocationRequest();
         locationRequest.setSmallestDisplacement(10f);
@@ -144,18 +156,37 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                         locationResult.getLastLocation().getLongitude());
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(newPosition, 18f));
 
-                // Update Location
-                geoFire.setLocation(FirebaseAuth.getInstance().getCurrentUser().getUid(),
-                        new GeoLocation(locationResult.getLastLocation().getLatitude(),
-                                locationResult.getLastLocation().getLongitude()),
-                        (key, error) -> {
-                            if (error != null)
-                                Snackbar.make(mapFragment.getView(), error.getMessage(), Snackbar.LENGTH_LONG)
-                                        .show();
-                            else
-                                Snackbar.make(mapFragment.getView(), "Your online", Snackbar.LENGTH_LONG)
-                                        .show();
-                        });
+                Geocoder geocoder = new Geocoder(getContext(), Locale.getDefault());
+                List<Address> addressList;
+                try {
+                    addressList = geocoder.getFromLocation(locationResult.getLastLocation().getLatitude(),
+                            locationResult.getLastLocation().getLongitude(), 1);
+                    String cityName = addressList.get(0).getLocality();
+
+                        driversLocationRef = FirebaseDatabase.getInstance().getReference(Common.DRIVER_LOCATION_REFERENCE)
+                                .child(cityName);
+                    currentUserRef = driversLocationRef.child(FirebaseAuth.getInstance().getCurrentUser().getUid());
+                    geoFire = new GeoFire(driversLocationRef);
+
+                    // Update Location
+                    geoFire.setLocation(FirebaseAuth.getInstance().getCurrentUser().getUid(),
+                            new GeoLocation(locationResult.getLastLocation().getLatitude(),
+                                    locationResult.getLastLocation().getLongitude()),
+                            (key, error) -> {
+                                if (error != null)
+                                    Snackbar.make(mapFragment.getView(), error.getMessage(), Snackbar.LENGTH_LONG)
+                                            .show();
+                                else
+                                    Snackbar.make(mapFragment.getView(), "Your online", Snackbar.LENGTH_LONG)
+                                            .show();
+                            });
+
+                    registerOnlineSystem(); // get only this, yet
+                } catch (IOException e) {
+                    Snackbar.make(getView(), e.getMessage(), Snackbar.LENGTH_SHORT).show();
+                }
+
+
             }
         };
 
@@ -163,14 +194,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+            Snackbar.make(getView(),getString(R.string.permission_require),Snackbar.LENGTH_SHORT).show();
             return;
         }
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+
     }
 
     @Override
@@ -186,11 +214,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                             // TODO: Consider calling
                             //    ActivityCompat#requestPermissions
-                            // here to request the missing permissions, and then overriding
-                            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                            //                                          int[] grantResults)
-                            // to handle the case where the user grants the permission. See the documentation
-                            // for ActivityCompat#requestPermissions for more details.
+                            Snackbar.make(getView(),getString(R.string.permission_require),Snackbar.LENGTH_SHORT).show();
                             return;
                         }
                         mMap.setMyLocationEnabled(true);
