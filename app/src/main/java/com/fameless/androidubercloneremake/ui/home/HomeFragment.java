@@ -81,7 +81,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
             if (dataSnapshot.exists() && currentUserRef !=null)
+            {
                 currentUserRef.onDisconnect().removeValue();
+            }
         }
 
         @Override
@@ -131,8 +133,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
             Snackbar.make(getView(), getString(R.string.permission_require), Snackbar.LENGTH_SHORT).show();
             return;
         }
@@ -142,9 +142,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
 
         locationRequest = new LocationRequest();
-        locationRequest.setSmallestDisplacement(10f);
-        locationRequest.setInterval(5000);
-        locationRequest.setFastestInterval(3000);
+        locationRequest.setSmallestDisplacement(50f);
+        locationRequest.setInterval(15000);
+        locationRequest.setFastestInterval(10000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
         locationCallback = new LocationCallback() {
@@ -176,9 +176,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                                 if (error != null)
                                     Snackbar.make(mapFragment.getView(), error.getMessage(), Snackbar.LENGTH_LONG)
                                             .show();
-                                else
-                                    Snackbar.make(mapFragment.getView(), "Your online", Snackbar.LENGTH_LONG)
-                                            .show();
+
                             });
 
                     registerOnlineSystem(); // get only this, yet
@@ -260,6 +258,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             Log.e("ERROR", e.getMessage());
         }
 
+        Snackbar.make(mapFragment.getView(), "Your online", Snackbar.LENGTH_LONG)
+                .show();
 
     }
 }
